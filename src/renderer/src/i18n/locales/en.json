@@ -274,6 +274,7 @@
         "imageRemoved": "Image will be removed.",
         "imageSet": "Custom image in use.",
         "imageNone": "No image selected.",
+        "imageMissing": "The background image could not be loaded. Choose another image or remove it.",
         "scope": {
           "window": "Entire window",
           "workspace": "Workspace only"

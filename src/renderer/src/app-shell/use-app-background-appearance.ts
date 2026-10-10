@@ -6,7 +6,10 @@ import {
   type AppBackgroundHostProps
 } from '@/lib/app-background-appearance'
 import type { AppBackgroundScope } from '../../../shared/app-background-settings'
-import type { AppBackgroundLayerProps } from '../components/app-background/AppBackgroundLayer'
+import {
+  useAppBackgroundBlobState,
+  type AppBackgroundLayerProps
+} from '../components/app-background/AppBackgroundLayer'
 import { isWebClientLocation } from '@/lib/web-client-location'
 import { useAppStore } from '../store'
 
@@ -44,20 +47,24 @@ export type ScopedAppBackground = {
   layer: AppBackgroundLayerProps
 }
 
-/** Host props and layer props when the applied background targets `scope`; null otherwise. */
+/** Host props and layer props once the applied background for `scope` has loaded; null otherwise. */
 export function useScopedAppBackground(scope: AppBackgroundScope): ScopedAppBackground | null {
   const appearance = useAppBackgroundAppearance()
+  const target = appearance?.scope === scope ? appearance : null
+  // Why: a missing or still-loading image must not leave translucent panels over nothing.
+  const loaded =
+    useAppBackgroundBlobState(target ? { id: target.imageId } : null)?.status === 'loaded'
   return useMemo(() => {
-    if (appearance?.scope !== scope) {
+    if (!target || !loaded) {
       return null
     }
     return {
-      host: getAppBackgroundHostProps(scope, appearance.panelOpacity),
+      host: getAppBackgroundHostProps(scope, target.panelOpacity),
       layer: {
-        imageId: appearance.imageId,
-        imageOpacity: appearance.imageOpacity,
-        blur: appearance.blur
+        imageId: target.imageId,
+        imageOpacity: target.imageOpacity,
+        blur: target.blur
       }
     }
-  }, [appearance, scope])
+  }, [target, loaded, scope])
 }

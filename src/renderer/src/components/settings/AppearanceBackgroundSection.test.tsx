@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { tmpdir } from 'node:os'
 import type { ComponentProps } from 'react'
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { create, useStore, type StoreApi } from 'zustand'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Slider } from '../ui/slider'
@@ -57,7 +57,7 @@ const STAGED_ID = '22222222-2222-4222-8222-222222222222.jpg'
 function makeApi(overrides: Partial<AppBackgroundApi> = {}): AppBackgroundApi {
   return {
     pick: vi.fn(async () => ({ status: 'canceled' as const })),
-    read: vi.fn(async () => null),
+    read: vi.fn(async () => new ArrayBuffer(8)),
     commit: vi.fn(async ({ stagingId }) => ({
       ok: true as const,
       imageId: stagingId
@@ -90,10 +90,13 @@ const unappliedBadge = () => screen.queryByText('Unapplied changes')
 describe('AppearanceBackgroundSection', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:background')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
   })
   afterEach(() => {
     cleanup()
     vi.unstubAllGlobals()
+    vi.restoreAllMocks()
   })
 
   it('edits only the draft until Apply, then writes the changed settings', async () => {
@@ -193,8 +196,10 @@ describe('AppearanceBackgroundSection', () => {
       stagingId: STAGED_ID
     })
     expect(screen.getByText('New image selected.')).toBeTruthy()
-    expect(screen.getByTestId('app-background-preview').getAttribute('data-preview-scope')).toBe(
-      'window'
+    await waitFor(() =>
+      expect(screen.getByTestId('app-background-preview').getAttribute('data-preview-scope')).toBe(
+        'window'
+      )
     )
     expect(api.read).toHaveBeenCalledWith({ id: STAGED_ID, staging: true })
 
@@ -281,13 +286,13 @@ describe('AppearanceBackgroundSection', () => {
     expect(unappliedBadge()).not.toBeNull()
   })
 
-  it('previews window scope on the whole frame and workspace scope on the workspace only', () => {
+  it('previews window scope on the whole frame and workspace scope on the workspace only', async () => {
     const { renderSection } = setup({ appBackgroundImageId: SAVED_ID })
     renderSection()
     const preview = screen.getByTestId('app-background-preview')
     const frame = preview.firstElementChild
     const workspace = screen.getByTestId('app-background-preview-workspace')
-    expect(frame?.getAttribute('data-app-background')).toBe('window')
+    await waitFor(() => expect(frame?.getAttribute('data-app-background')).toBe('window'))
     expect(workspace.hasAttribute('data-app-background')).toBe(false)
 
     fireEvent.click(screen.getByRole('radio', { name: 'Workspace only' }))
@@ -297,9 +302,14 @@ describe('AppearanceBackgroundSection', () => {
     expect(preview.getAttribute('data-preview-scope')).toBe('workspace')
   })
 
-  it('applies the draft panel opacity to the preview host', () => {
+  it('applies the draft panel opacity to the preview host', async () => {
     const { renderSection } = setup({ appBackgroundImageId: SAVED_ID })
     renderSection()
+    await waitFor(() =>
+      expect(screen.getByTestId('app-background-preview').getAttribute('data-preview-scope')).toBe(
+        'window'
+      )
+    )
     fireEvent.change(screen.getByRole('slider', { name: 'Panel Opacity' }), {
       target: { value: '0.4' }
     })
@@ -308,5 +318,28 @@ describe('AppearanceBackgroundSection', () => {
       throw new Error('expected preview frame')
     }
     expect(frame.style.getPropertyValue('--app-panel-opacity')).toBe('0.4')
+  })
+
+  it('reports a missing saved image, keeps the preview opaque, and lets the user remove it', async () => {
+    const api = makeApi({ read: vi.fn(async () => null) })
+    const { store, renderSection } = setup({ appBackgroundImageId: SAVED_ID }, api)
+    renderSection()
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(
+          'The background image could not be loaded. Choose another image or remove it.'
+        )
+      ).toBeTruthy()
+    )
+    expect(screen.queryByText('Custom image in use.')).toBeNull()
+    expect(screen.getByTestId('app-background-preview').getAttribute('data-preview-scope')).toBe(
+      'none'
+    )
+
+    const remove = screen.getByRole('button', { name: 'Remove' })
+    expect(remove).toHaveProperty('disabled', false)
+    fireEvent.click(remove)
+    expect(store.getState().appBackgroundDraft?.image).toEqual({ kind: 'remove' })
   })
 })

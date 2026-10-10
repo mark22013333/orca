@@ -8,6 +8,8 @@ export type AppBackgroundImageRef = { id: string; staging?: boolean }
 type Entry = {
   refs: number
   url: string | null
+  /** True once the read finished; with url still null the image is missing or unreadable. */
+  settled: boolean
   load: Promise<string | null>
 }
 
@@ -17,8 +19,12 @@ export function getAppBackgroundBlobKey(image: AppBackgroundImageRef): string {
   return `${image.staging ? 'staging' : 'saved'}:${image.id}`
 }
 
-export function peekAppBackgroundBlobUrl(image: AppBackgroundImageRef): string | null {
-  return entries.get(getAppBackgroundBlobKey(image))?.url ?? null
+/** Null while nobody holds the image or its read is still in flight. */
+export function peekSettledAppBackgroundBlobUrl(
+  image: AppBackgroundImageRef
+): { url: string | null } | null {
+  const entry = entries.get(getAppBackgroundBlobKey(image))
+  return entry?.settled ? { url: entry.url } : null
 }
 
 async function loadBlobUrl(image: AppBackgroundImageRef): Promise<string | null> {
@@ -42,7 +48,7 @@ export function acquireAppBackgroundBlobUrl(image: AppBackgroundImageRef): {
   const key = getAppBackgroundBlobKey(image)
   let entry = entries.get(key)
   if (!entry) {
-    const created: Entry = { refs: 0, url: null, load: Promise.resolve(null) }
+    const created: Entry = { refs: 0, url: null, settled: false, load: Promise.resolve(null) }
     created.load = loadBlobUrl(image)
       .catch((err: unknown) => {
         console.warn('Failed to load background image:', err)
@@ -57,6 +63,7 @@ export function acquireAppBackgroundBlobUrl(image: AppBackgroundImageRef): {
           return null
         }
         created.url = url
+        created.settled = true
         return url
       })
     entries.set(key, created)

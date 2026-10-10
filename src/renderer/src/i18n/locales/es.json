@@ -109,6 +109,7 @@
         "imageRemoved": "La imagen se quitará.",
         "imageSet": "Usando una imagen personalizada.",
         "imageNone": "No hay ninguna imagen seleccionada.",
+        "imageMissing": "No se pudo cargar la imagen de fondo. Elige otra imagen o quítala.",
         "scope": {
           "window": "Toda la ventana",
           "workspace": "Solo el área de trabajo"

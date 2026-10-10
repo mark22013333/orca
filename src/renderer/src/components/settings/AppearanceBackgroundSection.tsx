@@ -21,6 +21,7 @@ import {
 import { translate } from '@/i18n/i18n'
 import { Button } from '../ui/button'
 import { Slider } from '../ui/slider'
+import { useAppBackgroundBlobState } from '../app-background/AppBackgroundLayer'
 import { AppBackgroundPreview } from './AppBackgroundPreview'
 import { SettingsBadge, SettingsRow, SettingsSegmentedControl } from './SettingsFormControls'
 
@@ -73,7 +74,17 @@ export function describeAppBackgroundApplyFailure(
   }
 }
 
-function resolveImageStatus(draft: AppBackgroundDraft | null, savedImageId: string | null): string {
+function resolveImageStatus(
+  draft: AppBackgroundDraft | null,
+  savedImageId: string | null,
+  imageMissing: boolean
+): string {
+  if (imageMissing) {
+    return translate(
+      'settings.appearance.background.imageMissing',
+      'The background image could not be loaded. Choose another image or remove it.'
+    )
+  }
   if (draft?.image.kind === 'staged') {
     return translate('settings.appearance.background.imageStaged', 'New image selected.')
   }
@@ -164,6 +175,8 @@ export function AppearanceBackgroundSection({
       ? { id: savedImageId, staging: false }
       : null
   const hasChanges = hasUnappliedAppBackgroundChanges(draft)
+  const imageState = useAppBackgroundBlobState(image)
+  const imageMissing = imageState?.status === 'missing'
 
   const handlePick = async (): Promise<void> => {
     setPicking(true)
@@ -210,11 +223,15 @@ export function AppearanceBackgroundSection({
 
   return (
     <div className="space-y-1 pt-2" data-testid="appearance-background-section">
-      <AppBackgroundPreview image={image} values={values} />
+      {/* Why: mirror the live app, which keeps panels opaque until the image actually loads. */}
+      <AppBackgroundPreview
+        image={imageState?.status === 'loaded' ? image : null}
+        values={values}
+      />
 
       <SettingsRow
         label={translate('settings.appearance.background.image', 'Image')}
-        description={resolveImageStatus(draft, savedImageId)}
+        description={resolveImageStatus(draft, savedImageId, imageMissing)}
         control={
           <div className="flex items-center gap-2">
             <Button

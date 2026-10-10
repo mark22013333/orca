@@ -109,6 +109,7 @@
         "imageRemoved": "이미지가 제거됩니다.",
         "imageSet": "사용자 지정 이미지를 사용 중입니다.",
         "imageNone": "선택된 이미지가 없습니다.",
+        "imageMissing": "배경 이미지를 불러올 수 없습니다. 다른 이미지를 선택하거나 제거하세요.",
         "scope": {
           "window": "창 전체",
           "workspace": "워크스페이스만"

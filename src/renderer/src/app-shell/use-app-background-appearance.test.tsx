@@ -80,7 +80,7 @@ describe('useScopedAppBackground hosts', () => {
     const { getByTestId } = renderHosts()
     const host = getByTestId('host-window')
 
-    expect(host.getAttribute('data-app-background')).toBe('window')
+    await waitFor(() => expect(host.getAttribute('data-app-background')).toBe('window'))
     expect(host.style.getPropertyValue('--app-panel-opacity')).toBe('0.5')
     expect(getByTestId('host-workspace').hasAttribute('data-app-background')).toBe(false)
 
@@ -102,11 +102,44 @@ describe('useScopedAppBackground hosts', () => {
 
     expect(getByTestId('host-window').hasAttribute('data-app-background')).toBe(false)
     const host = getByTestId('host-workspace')
-    expect(host.getAttribute('data-app-background')).toBe('workspace')
+    await waitFor(() => expect(host.getAttribute('data-app-background')).toBe('workspace'))
     expect(host.style.getPropertyValue('--app-panel-opacity')).toBe('0.8')
     await waitFor(() =>
       expect(host.querySelector('[data-testid="app-background-layer"]')).not.toBeNull()
     )
+  })
+
+  it('keeps panels opaque until the image bytes arrive', async () => {
+    let resolveRead: (bytes: ArrayBuffer | null) => void = () => {}
+    read.mockReturnValue(
+      new Promise<ArrayBuffer | null>((resolve) => {
+        resolveRead = resolve
+      })
+    )
+    setSettings({ appBackgroundImageId: IMAGE_ID, appBackgroundScope: 'window' })
+    const { getByTestId } = renderHosts()
+    const host = getByTestId('host-window')
+
+    expect(host.hasAttribute('data-app-background')).toBe(false)
+    expect(host.style.getPropertyValue('--app-panel-opacity')).toBe('')
+
+    await act(async () => {
+      resolveRead(new ArrayBuffer(8))
+    })
+    await waitFor(() => expect(host.getAttribute('data-app-background')).toBe('window'))
+  })
+
+  it('stays opaque when the saved image cannot be read', async () => {
+    read.mockResolvedValue(null)
+    setSettings({ appBackgroundImageId: IMAGE_ID, appBackgroundScope: 'window' })
+    const { getByTestId } = renderHosts()
+    const host = getByTestId('host-window')
+
+    await waitFor(() => expect(read).toHaveBeenCalled())
+    await act(async () => {})
+
+    expect(host.hasAttribute('data-app-background')).toBe(false)
+    expect(host.querySelector('[data-testid="app-background-layer"]')).toBeNull()
   })
 
   it('renders nothing on the web client', () => {

@@ -1,12 +1,23 @@
 import { useEffect, useState } from 'react'
 import {
   acquireAppBackgroundBlobUrl,
-  peekAppBackgroundBlobUrl,
+  peekSettledAppBackgroundBlobUrl,
   type AppBackgroundImageRef
 } from './app-background-blob-cache'
 
-/** Blob URL for the image while mounted; null until loaded or when unreadable. */
-export function useAppBackgroundBlobUrl(image: AppBackgroundImageRef | null): string | null {
+export type AppBackgroundBlobState =
+  | { status: 'loading'; url: null }
+  | { status: 'loaded'; url: string }
+  | { status: 'missing'; url: null }
+
+function toBlobState(url: string | null): AppBackgroundBlobState {
+  return url ? { status: 'loaded', url } : { status: 'missing', url: null }
+}
+
+/** Load state of the image's blob URL while mounted; null when there is no image. */
+export function useAppBackgroundBlobState(
+  image: AppBackgroundImageRef | null
+): AppBackgroundBlobState | null {
   const id = image?.id ?? null
   const staging = image?.staging === true
   const [loaded, setLoaded] = useState<{ key: string; url: string | null } | null>(null)
@@ -35,9 +46,15 @@ export function useAppBackgroundBlobUrl(image: AppBackgroundImageRef | null): st
     return null
   }
   if (loaded?.key === key) {
-    return loaded.url
+    return toBlobState(loaded.url)
   }
-  return peekAppBackgroundBlobUrl({ id, staging })
+  const settled = peekSettledAppBackgroundBlobUrl({ id, staging })
+  return settled ? toBlobState(settled.url) : { status: 'loading', url: null }
+}
+
+/** Blob URL for the image while mounted; null until loaded or when unreadable. */
+export function useAppBackgroundBlobUrl(image: AppBackgroundImageRef | null): string | null {
+  return useAppBackgroundBlobState(image)?.url ?? null
 }
 
 export type AppBackgroundLayerProps = {

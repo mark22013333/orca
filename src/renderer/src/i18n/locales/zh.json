@@ -109,6 +109,7 @@
         "imageRemoved": "图片将被移除。",
         "imageSet": "正在使用自定义图片。",
         "imageNone": "未选择图片。",
+        "imageMissing": "无法加载背景图片。请选择其他图片或将其移除。",
         "scope": {
           "window": "整个窗口",
           "workspace": "仅工作区"
