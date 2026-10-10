@@ -1,10 +1,11 @@
 import type React from 'react'
 import { useLayoutEffect, useState } from 'react'
-import { AppWindow, PanelLeft, TerminalSquare } from 'lucide-react'
+import { AppWindow, ImageIcon, PanelLeft, TerminalSquare } from 'lucide-react'
 
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
 
 import { AppearanceSection } from './AppearanceSection'
+import { AppearanceBackgroundSection } from './AppearanceBackgroundSection'
 import { AppearanceInterfaceSection } from './AppearanceInterfaceSection'
 import { AppearanceWindowSidebarSection } from './AppearanceWindowSidebarSection'
 import { SearchableSetting } from './SearchableSetting'
@@ -40,6 +41,12 @@ import {
   getWorkspaceCardLayoutEntry
 } from './appearance-sidebar-search'
 import { resolveInterfaceSectionSummary } from './appearance-interface-summary'
+import {
+  getAppBackgroundEntries,
+  getAppBackgroundSectionDescription,
+  getAppBackgroundSectionTitle
+} from './appearance-background-search'
+import type { AppearanceAccordionSection } from './appearance-usage-percentage-search'
 export { getAppearancePaneSearchEntries }
 
 type AppearancePaneProps = {
@@ -54,9 +61,10 @@ type AppearancePaneProps = {
   warpThemes: UseWarpThemeImportReturn
 }
 
-type AppearanceSectionKey = 'interface' | 'terminal' | 'window'
+type AppearanceSectionKey = AppearanceAccordionSection
 
-const ALL_APPEARANCE_SECTIONS = [
+// Why: Background starts collapsed so its preview doesn't push the everyday settings below the fold.
+const DEFAULT_OPEN_APPEARANCE_SECTIONS = [
   'interface',
   'terminal',
   'window'
@@ -84,11 +92,13 @@ export function AppearancePane({
   // browser web client has no local tray to control.
   const isDesktopWindows = getRendererAppPlatform() === 'win32' && !isWebClient
   const isDesktopMac = getRendererAppPlatform() === 'darwin' && !isWebClient
+  // Why: background images need the desktop file-picker IPC, which the web client lacks.
+  const showAppBackground = !isWebClient
 
   // Why: Terminal / Window settings were too easy to miss when only Interface
   // started open; keep sections independently collapsible but expanded by default.
   const [openSections, setOpenSections] = useState<ReadonlySet<AppearanceSectionKey>>(
-    () => new Set(ALL_APPEARANCE_SECTIONS)
+    () => new Set(DEFAULT_OPEN_APPEARANCE_SECTIONS)
   )
 
   // Why: nested deep links (e.g. Usage percentages) land under Window & Sidebar;
@@ -134,7 +144,11 @@ export function AppearancePane({
     'Sidebar, status bar, and file explorer'
   )
 
+  const backgroundTitle = getAppBackgroundSectionTitle()
+  const backgroundSummary = getAppBackgroundSectionDescription()
+
   // Search-entry buckets per section so a query can force-open the matching one.
+  const backgroundSearchEntries = getAppBackgroundEntries({ showAppBackground })
   const interfaceSearchEntries = [
     { title: interfaceTitle },
     ...getThemeEntries(),
@@ -163,6 +177,8 @@ export function AppearancePane({
     getWorkspaceCardLayoutEntry()
   ]
 
+  const backgroundMatches =
+    showAppBackground && matchesSettingsSearch(searchQuery, backgroundSearchEntries)
   const interfaceMatches = matchesSettingsSearch(searchQuery, interfaceSearchEntries)
   const terminalMatches = matchesSettingsSearch(searchQuery, terminalSearchEntries)
   const windowMatches = matchesSettingsSearch(searchQuery, windowSearchEntries)
@@ -179,11 +195,13 @@ export function AppearancePane({
   // independent open/closed state (all expanded by default).
   function isSectionOpen(key: AppearanceSectionKey): boolean {
     if (isSearching) {
-      return key === 'interface'
-        ? interfaceMatches
-        : key === 'terminal'
-          ? terminalMatches
-          : windowMatches
+      const matchesBySection: Record<AppearanceSectionKey, boolean> = {
+        background: backgroundMatches,
+        interface: interfaceMatches,
+        terminal: terminalMatches,
+        window: windowMatches
+      }
+      return matchesBySection[key]
     }
     return openSections.has(key)
   }
@@ -208,6 +226,20 @@ export function AppearancePane({
 
   return (
     <div className="space-y-2.5">
+      {backgroundMatches ? (
+        <AppearanceSection
+          id="background"
+          icon={<ImageIcon aria-hidden="true" />}
+          title={backgroundTitle}
+          summary={backgroundSummary}
+          open={isSectionOpen('background')}
+          onToggle={() => toggleSection('background')}
+          toggleDisabled={isSearching}
+        >
+          <AppearanceBackgroundSection settings={settings} />
+        </AppearanceSection>
+      ) : null}
+
       {interfaceMatches ? (
         <AppearanceSection
           id="interface"

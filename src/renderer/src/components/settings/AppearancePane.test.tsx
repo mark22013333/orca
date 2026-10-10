@@ -200,7 +200,7 @@ async function rerenderAppearancePane(
 
 function appearanceSectionToggle(
   container: HTMLElement,
-  sectionId: 'interface' | 'terminal' | 'chat' | 'window'
+  sectionId: 'background' | 'interface' | 'terminal' | 'chat' | 'window'
 ): HTMLButtonElement | undefined {
   return Array.from(container.querySelectorAll<HTMLButtonElement>('button[aria-expanded]')).find(
     (button) => button.getAttribute('aria-controls') === `appearance-section-${sectionId}`
@@ -651,6 +651,43 @@ describe('AppearancePane', () => {
       'true'
     )
     expect(mocks.state.clearAppearanceAccordionDeepLink).toHaveBeenCalled()
+  })
+
+  it('shows the Background section first on desktop, collapsed by default', async () => {
+    mocks.state.settingsSearchQuery = ''
+    const container = await renderAppearancePane(getDefaultSettings('/tmp'))
+
+    const backgroundToggle = appearanceSectionToggle(container, 'background')
+    expect(backgroundToggle?.getAttribute('aria-expanded')).toBe('false')
+    const firstSectionToggle = container.querySelector(
+      'button[aria-controls^="appearance-section-"]'
+    )
+    expect(firstSectionToggle?.getAttribute('aria-controls')).toBe('appearance-section-background')
+  })
+
+  it('hides the Background section in the web client', async () => {
+    mocks.state.settingsSearchQuery = ''
+    vi.stubGlobal('__ORCA_WEB_CLIENT__', true)
+    try {
+      const container = await renderAppearancePane(getDefaultSettings('/tmp'))
+      expect(appearanceSectionToggle(container, 'background')).toBeUndefined()
+      expect(container.querySelector('[data-testid="appearance-background-section"]')).toBeNull()
+      expect(appearanceSectionToggle(container, 'interface')).toBeDefined()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('force-opens only the Background section for a background search', async () => {
+    mocks.state.settingsSearchQuery = 'wallpaper'
+    const container = await renderAppearancePane(getDefaultSettings('/tmp'))
+
+    expect(appearanceSectionToggle(container, 'background')?.getAttribute('aria-expanded')).toBe(
+      'true'
+    )
+    expect(container.querySelector('[data-testid="app-background-preview"]')).not.toBeNull()
+    expect(appearanceSectionToggle(container, 'interface')).toBeUndefined()
+    expect(appearanceSectionToggle(container, 'terminal')).toBeUndefined()
   })
 
   it('disables section toggles while searching so clearing search does not surprise-collapse', async () => {
