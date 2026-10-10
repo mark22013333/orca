@@ -18,6 +18,11 @@ import {
 import { canContinueAgentSessionInNewSession } from './terminal-agent-session-continuation'
 import type { TerminalPaneMobileController } from './use-terminal-pane-mobile-actions'
 import { useAppStore } from '@/store'
+import {
+  resolveAppBackgroundAppearance,
+  resolveTranslucentPaneTitleBackground
+} from '@/lib/app-background-appearance'
+import { isWebClientLocation } from '@/lib/web-client-location'
 import { makePaneKey } from '../../../../shared/stable-pane-id'
 import { resolvePaneAgentSessionId } from './pane-agent-session-id'
 
@@ -62,11 +67,21 @@ export function useTerminalPaneProjection(controller: TerminalPaneMobileControll
     appSurface: effectiveAppearance?.mode,
     backgroundOpacity: settings?.terminalBackgroundOpacity
   })
+  const appBackgroundActive =
+    resolveAppBackgroundAppearance(settings, isWebClientLocation()) !== null
+  // Why: over a background image the opaque composite would hide the image the terminal lets through.
   const paneTitleBackground =
+    (appBackgroundActive
+      ? resolveTranslucentPaneTitleBackground(
+          terminalBackground,
+          settings?.terminalBackgroundOpacity
+        )
+      : null) ??
     resolveOpaqueTerminalBackground(terminalBackground, {
       appSurface: effectiveAppearance?.mode,
       backgroundOpacity: settings?.terminalBackgroundOpacity
-    }) ?? (titleUsesLightSurface ? '#ffffff' : '#000000')
+    }) ??
+    (titleUsesLightSurface ? '#ffffff' : '#000000')
   const terminalContentVisible = isVisible || shouldMeasureHiddenStartup
   const hiddenStartupStyle: CSSProperties = shouldMeasureHiddenStartup
     ? { opacity: 0, pointerEvents: 'none' }
