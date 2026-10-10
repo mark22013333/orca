@@ -27,7 +27,7 @@ export type AppBackgroundDraftImage =
  *  Blob URLs never live here; see app-background-blob-cache. */
 export type AppBackgroundDraft = AppBackgroundDraftValues & {
   image: AppBackgroundDraftImage
-  /** Settings captured when the draft opened; the baseline for change detection and Apply. */
+  /** Applied settings the draft is compared against; rebased whenever settings change. */
   snapshot: AppBackgroundDraftValues & { imageId: string | null }
 }
 
