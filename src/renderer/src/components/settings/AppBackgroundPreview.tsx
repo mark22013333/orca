@@ -16,6 +16,10 @@ const PREVIEW_TERMINAL_LINES = [
   'On branch main'
 ] as const
 
+const PREVIEW_ROOT_STYLE: React.CSSProperties & Record<'--app-panel-alpha', string> = {
+  '--app-panel-alpha': '100%'
+}
+
 type AppBackgroundPreviewProps = {
   image: { id: string; staging: boolean } | null
   values: AppBackgroundDraftValues
@@ -57,6 +61,8 @@ export function AppBackgroundPreview({
       data-testid="app-background-preview"
       data-preview-scope={image ? values.scope : 'none'}
       className="pointer-events-none overflow-hidden rounded-lg border border-border/50 select-none"
+      // Why: the settings page sits inside the live host when a window background is applied; keep its alpha out.
+      style={PREVIEW_ROOT_STYLE}
     >
       <div {...windowHost} className="flex h-44 flex-col overflow-hidden bg-background">
         {windowHost ? layer : null}

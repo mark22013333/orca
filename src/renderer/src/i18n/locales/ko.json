@@ -116,6 +116,7 @@
         },
         "image": "이미지",
         "chooseImage": "이미지 선택…",
+        "pickDialogTitle": "배경 이미지 선택",
         "removeImage": "제거",
         "scopeLabel": "이미지 표시 범위",
         "scopeDescription": "창 전체 또는 양쪽 사이드바 사이의 워크스페이스만 덮습니다.",

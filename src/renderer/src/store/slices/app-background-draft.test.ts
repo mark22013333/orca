@@ -148,6 +148,34 @@ describe('app background draft slice', () => {
     expect(store.getState().appBackgroundDraft).toBe(before)
   })
 
+  it('ignores edits while Apply is in flight so the final clear cannot drop them', async () => {
+    let finishCommit: () => void = () => {}
+    const api = makeApi({
+      commit: vi.fn(
+        () =>
+          new Promise<{ ok: true; imageId: string }>((resolve) => {
+            finishCommit = () => resolve({ ok: true, imageId: STAGED_A })
+          })
+      )
+    })
+    const { store } = makeStore({}, api)
+    store.getState().stageAppBackgroundDraftImage(STAGED_A)
+    const applying = store.getState().applyAppBackgroundDraft()
+
+    store.getState().setAppBackgroundDraft({ blur: 15 })
+    store.getState().stageAppBackgroundDraftImage(STAGED_B)
+    store.getState().removeAppBackgroundDraftImage()
+    store.getState().discardAppBackgroundDraft()
+
+    expect(store.getState().appBackgroundDraft).toMatchObject({
+      blur: 4,
+      image: { kind: 'staged', stagingId: STAGED_A }
+    })
+    expect(api.discard).not.toHaveBeenCalled()
+    finishCommit()
+    await expect(applying).resolves.toEqual({ ok: true })
+  })
+
   it('normalizes edits and treats reverting to the snapshot as no change', () => {
     const { store } = makeStore()
 

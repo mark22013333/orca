@@ -34,11 +34,13 @@ vi.mock('../ui/slider', () => ({
     min,
     max,
     step,
+    disabled,
     thumbLabels,
     onValueChange
   }: ComponentProps<typeof Slider>) => (
     <input
       aria-label={thumbLabels?.[0]}
+      disabled={disabled}
       type="range"
       min={min}
       max={max}
@@ -365,5 +367,49 @@ describe('AppearanceBackgroundSection', () => {
       terminalBackgroundOpacity: 0.3,
       snapshot: { terminalBackgroundOpacity: 0.3 }
     })
+  })
+
+  it('locks every control while Apply is in flight', async () => {
+    let finishCommit: () => void = () => {}
+    const api = makeApi({
+      commit: vi.fn(
+        () =>
+          new Promise<{ ok: true; imageId: string }>((resolve) => {
+            finishCommit = () => resolve({ ok: true, imageId: STAGED_ID })
+          })
+      )
+    })
+    const { store, renderSection } = setup({}, api)
+    store.getState().stageAppBackgroundDraftImage(STAGED_ID)
+    renderSection()
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
+    })
+
+    for (const name of [
+      'Image Opacity',
+      'Image Blur',
+      'Panel Opacity',
+      'Terminal Background Opacity'
+    ]) {
+      expect(screen.getByRole('slider', { name })).toHaveProperty('disabled', true)
+    }
+    for (const radio of screen.getAllByRole('radio')) {
+      expect(radio.getAttribute('aria-disabled')).toBe('true')
+    }
+    expect(screen.getByRole('button', { name: /Choose Image/ })).toHaveProperty('disabled', true)
+
+    await act(async () => {
+      finishCommit()
+    })
+    expect(screen.getByRole('slider', { name: 'Image Blur' })).toHaveProperty('disabled', false)
+  })
+
+  it('shields the preview from an applied background on the settings page itself', () => {
+    const { renderSection } = setup()
+    renderSection()
+    const preview = screen.getByTestId('app-background-preview')
+    expect(preview.style.getPropertyValue('--app-panel-alpha')).toBe('100%')
   })
 })

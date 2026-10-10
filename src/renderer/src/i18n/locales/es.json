@@ -116,6 +116,7 @@
         },
         "image": "Imagen",
         "chooseImage": "Elegir imagen…",
+        "pickDialogTitle": "Elegir imagen de fondo",
         "removeImage": "Quitar",
         "scopeLabel": "Mostrar imagen en",
         "scopeDescription": "Cubre toda la ventana o solo el área de trabajo entre las barras laterales.",

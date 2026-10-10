@@ -116,6 +116,7 @@
         },
         "image": "图片",
         "chooseImage": "选择图片…",
+        "pickDialogTitle": "选择背景图片",
         "removeImage": "移除",
         "scopeLabel": "图片显示范围",
         "scopeDescription": "覆盖整个窗口，或仅覆盖两侧边栏之间的工作区。",

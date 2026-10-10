@@ -217,6 +217,7 @@
         },
         "image": "Image",
         "chooseImage": "Choisir une image…",
+        "pickDialogTitle": "Choisir une image d'arrière-plan",
         "removeImage": "Supprimer",
         "scopeLabel": "Afficher l'image dans",
         "scopeDescription": "Couvre toute la fenêtre, ou seulement l'espace de travail entre les barres latérales.",

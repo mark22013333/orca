@@ -27,6 +27,10 @@ vi.mock('electron', () => ({
   ipcMain: { handle: handleMock }
 }))
 
+vi.mock('../i18n/main-i18n', () => ({
+  translateMain: (key: string, fallback: string) => `[${key}] ${fallback}`
+}))
+
 import { registerAppBackgroundHandlers, sweepAppBackgroundStaging } from './app-background'
 import { MAX_APP_BACKGROUND_IMAGE_BYTES } from '../../shared/app-background-settings'
 
@@ -117,6 +121,14 @@ describe('registerAppBackgroundHandlers', () => {
     await expect(readFile(join(stagingDir, stagingId))).resolves.toEqual(JPEG)
     await expect(readImage({ id: stagingId, staging: true })).resolves.toEqual(JPEG)
     await expect(handler('appBackground:read')({}, { id: stagingId })).resolves.toBeNull()
+  })
+
+  it('titles the file dialog with localized copy', async () => {
+    showOpenDialogMock.mockResolvedValue({ canceled: true, filePaths: [] })
+    await handler('appBackground:pick')({ sender: {} })
+    expect(showOpenDialogMock.mock.calls[0]?.[0]).toMatchObject({
+      title: '[settings.appearance.background.pickDialogTitle] Choose background image'
+    })
   })
 
   it('reports a canceled dialog without touching disk', async () => {

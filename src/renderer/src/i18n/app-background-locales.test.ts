@@ -13,7 +13,8 @@ const KEY_PREFIX = 'settings.appearance.background.'
 const SOURCE_FILES = [
   '../components/settings/AppearanceBackgroundSection.tsx',
   '../components/settings/AppBackgroundPreview.tsx',
-  '../components/settings/appearance-background-search.ts'
+  '../components/settings/appearance-background-search.ts',
+  '../../../main/ipc/app-background.ts'
 ]
 
 // Why: the catalog gate tolerates missing non-English keys, so this pins full coverage for the feature.

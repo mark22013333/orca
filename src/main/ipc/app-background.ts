@@ -15,6 +15,7 @@ import type {
   AppBackgroundPickResult
 } from '../../shared/app-background-types'
 import { detectImageMimeType } from '../image-file-signature'
+import { translateMain } from '../i18n/main-i18n'
 import { isENOENT } from './filesystem-path-containment'
 import {
   getAppBackgroundStagingDir,
@@ -143,7 +144,10 @@ export function registerAppBackgroundHandlers(store: AppBackgroundSettingsStore)
     const senderWindow =
       BrowserWindow.fromWebContents(event.sender) ?? BrowserWindow.getFocusedWindow()
     const options: Electron.OpenDialogOptions = {
-      title: 'Choose background image',
+      title: translateMain(
+        'settings.appearance.background.pickDialogTitle',
+        'Choose background image'
+      ),
       properties: ['openFile'],
       filters: [{ name: 'Image', extensions: [...APP_BACKGROUND_IMAGE_EXTENSIONS] }]
     }

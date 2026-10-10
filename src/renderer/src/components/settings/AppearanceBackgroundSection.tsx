@@ -108,6 +108,7 @@ type BackgroundSliderRowProps = {
   max: number
   step: number
   valueText: string
+  disabled: boolean
   onChange: (value: number) => void
 }
 
@@ -119,6 +120,7 @@ function BackgroundSliderRow({
   max,
   step,
   valueText,
+  disabled,
   onChange
 }: BackgroundSliderRowProps): React.JSX.Element {
   return (
@@ -133,6 +135,7 @@ function BackgroundSliderRow({
               max={max}
               step={step}
               value={[value]}
+              disabled={disabled}
               thumbLabels={[label]}
               thumbValueLabels={[valueText]}
               onValueChange={([next]) => onChange(Math.round(next * 100) / 100)}
@@ -224,14 +227,16 @@ export function AppearanceBackgroundSection({
     discardDraft()
   }
 
-  const scopeOptions: { value: AppBackgroundScope; label: string }[] = [
+  const scopeOptions: { value: AppBackgroundScope; label: string; disabled: boolean }[] = [
     {
       value: 'window',
-      label: translate('settings.appearance.background.scope.window', 'Entire window')
+      label: translate('settings.appearance.background.scope.window', 'Entire window'),
+      disabled: applying
     },
     {
       value: 'workspace',
-      label: translate('settings.appearance.background.scope.workspace', 'Workspace only')
+      label: translate('settings.appearance.background.scope.workspace', 'Workspace only'),
+      disabled: applying
     }
   ]
 
@@ -300,6 +305,7 @@ export function AppearanceBackgroundSection({
         min={0}
         max={1}
         step={0.05}
+        disabled={applying}
         valueText={formatPercent(values.imageOpacity)}
         onChange={(imageOpacity) => setDraft({ imageOpacity })}
       />
@@ -313,6 +319,7 @@ export function AppearanceBackgroundSection({
         min={MIN_APP_BACKGROUND_BLUR_PX}
         max={MAX_APP_BACKGROUND_BLUR_PX}
         step={1}
+        disabled={applying}
         valueText={`${values.blur}px`}
         onChange={(blur) => setDraft({ blur })}
       />
@@ -326,6 +333,7 @@ export function AppearanceBackgroundSection({
         min={MIN_APP_BACKGROUND_PANEL_OPACITY}
         max={1}
         step={0.05}
+        disabled={applying}
         valueText={formatPercent(values.panelOpacity)}
         onChange={(panelOpacity) => setDraft({ panelOpacity })}
       />
@@ -342,6 +350,7 @@ export function AppearanceBackgroundSection({
         min={0}
         max={1}
         step={0.05}
+        disabled={applying}
         valueText={formatPercent(values.terminalBackgroundOpacity)}
         onChange={(terminalBackgroundOpacity) => setDraft({ terminalBackgroundOpacity })}
       />

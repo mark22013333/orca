@@ -7,32 +7,19 @@ import {
   normalizeAppBackgroundImageId,
   normalizeAppBackgroundImageOpacity,
   normalizeAppBackgroundPanelOpacity,
-  normalizeAppBackgroundScope,
-  type AppBackgroundScope
+  normalizeAppBackgroundScope
 } from '../../../../shared/app-background-settings'
+import {
+  normalizeTerminalBackgroundOpacity,
+  readAppBackgroundDraftValues,
+  rebaseAppBackgroundDraft,
+  type AppBackgroundDraft,
+  type AppBackgroundDraftImage,
+  type AppBackgroundDraftValues
+} from './app-background-draft-model'
 
-/** Numeric/scope fields the background settings draft edits before Apply. */
-export type AppBackgroundDraftValues = {
-  scope: AppBackgroundScope
-  imageOpacity: number
-  blur: number
-  panelOpacity: number
-  terminalBackgroundOpacity: number
-}
-
-export type AppBackgroundDraftImage =
-  | { kind: 'unchanged' }
-  | { kind: 'staged'; stagingId: string }
-  | { kind: 'remove' }
-
-/** Session-only background settings draft (same lifetime model as feedback-draft):
- *  it survives leaving the settings page and is cleared by Apply, Discard or restart.
- *  Blob URLs never live here; see app-background-blob-cache. */
-export type AppBackgroundDraft = AppBackgroundDraftValues & {
-  image: AppBackgroundDraftImage
-  /** Settings captured when the draft opened; the baseline for change detection and Apply. */
-  snapshot: AppBackgroundDraftValues & { imageId: string | null }
-}
+export type { AppBackgroundDraft, AppBackgroundDraftImage, AppBackgroundDraftValues }
+export { readAppBackgroundDraftValues, rebaseAppBackgroundDraft }
 
 export type AppBackgroundApplyResult =
   | { ok: true }
@@ -66,28 +53,6 @@ type HostSet = (
     | ((state: AppBackgroundDraftHost) => Partial<AppBackgroundDraftHost>)
 ) => void
 
-export function readAppBackgroundDraftValues(
-  settings: GlobalSettings | null
-): AppBackgroundDraftValues {
-  return {
-    scope: normalizeAppBackgroundScope(settings?.appBackgroundScope),
-    imageOpacity: normalizeAppBackgroundImageOpacity(settings?.appBackgroundImageOpacity),
-    blur: normalizeAppBackgroundBlur(settings?.appBackgroundBlur),
-    panelOpacity: normalizeAppBackgroundPanelOpacity(settings?.appBackgroundPanelOpacity),
-    terminalBackgroundOpacity: normalizeTerminalBackgroundOpacity(
-      settings?.terminalBackgroundOpacity
-    )
-  }
-}
-
-function normalizeTerminalBackgroundOpacity(value: unknown): number {
-  // Why: undefined means "opaque" everywhere terminalBackgroundOpacity is read.
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    return 1
-  }
-  return Math.min(1, Math.max(0, value))
-}
-
 function normalizeDraftPatch(
   patch: Partial<AppBackgroundDraftValues>
 ): Partial<AppBackgroundDraftValues> {
@@ -118,40 +83,6 @@ function buildDraft(settings: GlobalSettings | null): AppBackgroundDraft {
     ...values,
     image: { kind: 'unchanged' },
     snapshot: { ...values, imageId: normalizeAppBackgroundImageId(settings?.appBackgroundImageId) }
-  }
-}
-
-/** The snapshot always mirrors current settings, so "changed" means "differs from what is applied now". */
-export function rebaseAppBackgroundDraft(
-  draft: AppBackgroundDraft,
-  settings: GlobalSettings | null
-): AppBackgroundDraft {
-  const next = readAppBackgroundDraftValues(settings)
-  const nextImageId = normalizeAppBackgroundImageId(settings?.appBackgroundImageId)
-  const { snapshot } = draft
-  if (
-    snapshot.imageId === nextImageId &&
-    snapshot.scope === next.scope &&
-    snapshot.imageOpacity === next.imageOpacity &&
-    snapshot.blur === next.blur &&
-    snapshot.panelOpacity === next.panelOpacity &&
-    snapshot.terminalBackgroundOpacity === next.terminalBackgroundOpacity
-  ) {
-    return draft
-  }
-  const edited: AppBackgroundDraftValues = draft
-  const baseline: AppBackgroundDraftValues = snapshot
-  const follow = <K extends keyof AppBackgroundDraftValues>(key: K): AppBackgroundDraftValues[K] =>
-    edited[key] === baseline[key] ? next[key] : edited[key]
-  return {
-    scope: follow('scope'),
-    imageOpacity: follow('imageOpacity'),
-    blur: follow('blur'),
-    panelOpacity: follow('panelOpacity'),
-    terminalBackgroundOpacity: follow('terminalBackgroundOpacity'),
-    image:
-      draft.image.kind === 'remove' && nextImageId === null ? { kind: 'unchanged' } : draft.image,
-    snapshot: { ...next, imageId: nextImageId }
   }
 }
 
@@ -219,6 +150,9 @@ export function createAppBackgroundDraftActions(
   get: () => AppBackgroundDraftHost,
   getApi: () => AppBackgroundApi
 ): AppBackgroundDraftSlice {
+  // Why: Apply clears the draft when it finishes, so edits made mid-flight would vanish silently.
+  const isApplying = (): boolean => get().appBackgroundDraftApplying
+
   const ensureDraft = (): AppBackgroundDraft => {
     const existing = get().appBackgroundDraft
     if (existing) {
@@ -249,11 +183,17 @@ export function createAppBackgroundDraftActions(
     },
 
     setAppBackgroundDraft: (patch) => {
+      if (isApplying()) {
+        return
+      }
       const draft = ensureDraft()
       set({ appBackgroundDraft: { ...draft, ...normalizeDraftPatch(patch) } })
     },
 
     stageAppBackgroundDraftImage: (stagingId) => {
+      if (isApplying()) {
+        return
+      }
       const draft = ensureDraft()
       if (draft.image.kind === 'staged' && draft.image.stagingId === stagingId) {
         return
@@ -263,6 +203,9 @@ export function createAppBackgroundDraftActions(
     },
 
     removeAppBackgroundDraftImage: () => {
+      if (isApplying()) {
+        return
+      }
       const draft = ensureDraft()
       discardStagedFile(getApi(), draft.image)
       set({
@@ -319,6 +262,9 @@ export function createAppBackgroundDraftActions(
     },
 
     discardAppBackgroundDraft: () => {
+      if (isApplying()) {
+        return
+      }
       const draft = get().appBackgroundDraft
       if (!draft) {
         return

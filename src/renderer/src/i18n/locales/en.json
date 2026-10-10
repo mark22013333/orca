@@ -281,6 +281,7 @@
         },
         "image": "Image",
         "chooseImage": "Choose Image…",
+        "pickDialogTitle": "Choose background image",
         "removeImage": "Remove",
         "scopeLabel": "Show Image In",
         "scopeDescription": "Cover the whole window, or only the workspace between the sidebars.",
