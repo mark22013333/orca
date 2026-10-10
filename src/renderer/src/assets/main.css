@@ -1012,8 +1012,9 @@ html.native-shell .app-layout {
 /* Why: every rule keys off a host attribute so a scaled-down settings preview can
    reuse them; without a host (no image) nothing here applies. */
 [data-app-background] {
-  /* Why: dark chrome reads fine at lower alpha, so one user value maps to two curves. */
-  --app-panel-alpha: calc(var(--app-panel-opacity, 1) * 100%);
+  /* Why: a white wash flattens an image far more than a black one at the same alpha,
+     so light themes fade panels harder to keep the image visible. */
+  --app-panel-alpha: calc(var(--app-panel-opacity, 1) * 65%);
   position: relative;
   /* Why: lets the z-index:-1 image layer sit under in-flow siblings without escaping the host. */
   isolation: isolate;

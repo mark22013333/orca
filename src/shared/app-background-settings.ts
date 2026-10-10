@@ -5,11 +5,13 @@ export type AppBackgroundScope = 'window' | 'workspace'
 export const APP_BACKGROUND_SCOPES: readonly AppBackgroundScope[] = ['window', 'workspace']
 export const DEFAULT_APP_BACKGROUND_SCOPE: AppBackgroundScope = 'window'
 
-export const DEFAULT_APP_BACKGROUND_IMAGE_OPACITY = 0.6
+// Why: panels already mask the image; fading it too washes it out on light themes.
+export const DEFAULT_APP_BACKGROUND_IMAGE_OPACITY = 1
 export const MIN_APP_BACKGROUND_IMAGE_OPACITY = 0
 export const MAX_APP_BACKGROUND_IMAGE_OPACITY = 1
 
-export const DEFAULT_APP_BACKGROUND_BLUR_PX = 0
+// Why: a light blur keeps chrome text readable over busy images at the lower light-theme alpha.
+export const DEFAULT_APP_BACKGROUND_BLUR_PX = 4
 export const MIN_APP_BACKGROUND_BLUR_PX = 0
 export const MAX_APP_BACKGROUND_BLUR_PX = 20
 

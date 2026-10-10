@@ -16,6 +16,15 @@ import {
 
 const UUID = '0b75a9ce-1471-4d83-950b-815f4d4d47cc'
 
+describe('app background defaults', () => {
+  it('shows the image at full strength and lets the panels do the masking', () => {
+    // Why: a second fade on the image doubles the wash-out on light themes.
+    expect(DEFAULT_APP_BACKGROUND_IMAGE_OPACITY).toBe(1)
+    expect(DEFAULT_APP_BACKGROUND_BLUR_PX).toBe(4)
+    expect(DEFAULT_APP_BACKGROUND_PANEL_OPACITY).toBe(0.8)
+  })
+})
+
 describe('app background settings normalization', () => {
   it('clamps image opacity to 0..1 and falls back on non-finite input', () => {
     expect(normalizeAppBackgroundImageOpacity(0)).toBe(0)

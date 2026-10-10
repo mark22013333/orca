@@ -107,7 +107,7 @@ describe('AppearanceBackgroundSection', () => {
     })
 
     expect(store.getState().appBackgroundDraft?.imageOpacity).toBe(0.3)
-    expect(store.getState().settings?.appBackgroundImageOpacity).toBe(0.6)
+    expect(store.getState().settings?.appBackgroundImageOpacity).toBe(1)
     expect(updateSettingsOrThrow).not.toHaveBeenCalled()
     expect(unappliedBadge()).not.toBeNull()
     expect(screen.getByText('30%')).toBeTruthy()

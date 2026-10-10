@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   getAppBackgroundHostProps,
@@ -29,7 +31,7 @@ describe('resolveAppBackgroundAppearance', () => {
     ).toEqual({
       imageId: IMAGE_ID,
       scope: 'window',
-      imageOpacity: 0.6,
+      imageOpacity: 1,
       blur: 20,
       panelOpacity: 0.2
     })
@@ -60,5 +62,17 @@ describe('resolveTranslucentPaneTitleBackground', () => {
     expect(resolveTranslucentPaneTitleBackground('#282c34', undefined)).toBeNull()
     expect(resolveTranslucentPaneTitleBackground('#282c34', 1)).toBeNull()
     expect(resolveTranslucentPaneTitleBackground(undefined, 0.5)).toBeNull()
+  })
+})
+
+describe('main.css panel alpha curves', () => {
+  const css = readFileSync(resolve('src/renderer/src/assets/main.css'), 'utf8')
+  const curves = [
+    ...css.matchAll(/--app-panel-alpha: calc\(var\(--app-panel-opacity, 1\) \* (\d+)%\)/g)
+  ].map((match) => Number(match[1]))
+
+  it('fades light panels harder than dark ones', () => {
+    // White overlays flatten an image far more than black ones at the same alpha.
+    expect(curves).toEqual([65, 85])
   })
 })

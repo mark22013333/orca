@@ -56,8 +56,8 @@ describe('app background draft slice', () => {
     const draft = store.getState().appBackgroundDraft
     expect(draft).toMatchObject({
       scope: 'workspace',
-      imageOpacity: 0.6,
-      blur: 0,
+      imageOpacity: 1,
+      blur: 4,
       panelOpacity: 0.5,
       terminalBackgroundOpacity: 0.7,
       image: { kind: 'unchanged' },
@@ -88,7 +88,7 @@ describe('app background draft slice', () => {
     expect(store.getState().appBackgroundDraft).toMatchObject({ panelOpacity: 0.2, blur: 20 })
     expect(hasChanges(store.getState())).toBe(true)
 
-    store.getState().setAppBackgroundDraft({ panelOpacity: 0.8, blur: 0 })
+    store.getState().setAppBackgroundDraft({ panelOpacity: 0.8, blur: 4 })
     expect(hasChanges(store.getState())).toBe(false)
   })
 
