@@ -31,7 +31,8 @@ const mocks = vi.hoisted(() => ({
     setWorktreeCardMode: vi.fn(),
     appearanceAccordionDeepLink: null as 'interface' | 'terminal' | 'window' | null,
     clearAppearanceAccordionDeepLink: vi.fn(),
-    appBackgroundDraft: null as AppBackgroundDraft | null
+    appBackgroundDraft: null as AppBackgroundDraft | null,
+    syncAppBackgroundDraftWithSettings: vi.fn()
   }
 }))
 

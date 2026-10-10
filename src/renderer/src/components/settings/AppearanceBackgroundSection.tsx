@@ -1,5 +1,5 @@
 import type React from 'react'
-import { useState } from 'react'
+import { useLayoutEffect, useState } from 'react'
 import { ImagePlus, Loader2 } from 'lucide-react'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import type { AppBackgroundPickRejection } from '../../../../shared/app-background-types'
@@ -161,8 +161,22 @@ export function AppearanceBackgroundSection({
   const removeImage = useAppStore((state) => state.removeAppBackgroundDraftImage)
   const applyDraft = useAppStore((state) => state.applyAppBackgroundDraft)
   const discardDraft = useAppStore((state) => state.discardAppBackgroundDraft)
+  const syncDraft = useAppStore((state) => state.syncAppBackgroundDraftWithSettings)
   const [picking, setPicking] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Why: other windows and the Terminal section write these settings too; keep untouched draft fields current.
+  useLayoutEffect(() => {
+    syncDraft()
+  }, [
+    syncDraft,
+    settings.appBackgroundImageId,
+    settings.appBackgroundScope,
+    settings.appBackgroundImageOpacity,
+    settings.appBackgroundBlur,
+    settings.appBackgroundPanelOpacity,
+    settings.terminalBackgroundOpacity
+  ])
 
   // Why: no draft until the first edit, so the controls mirror the applied settings until then.
   const values = draft ?? readAppBackgroundDraftValues(settings)

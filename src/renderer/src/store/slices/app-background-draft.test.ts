@@ -81,6 +81,73 @@ describe('app background draft slice', () => {
     expect(store.getState().appBackgroundDraft).toMatchObject({ blur: 8, snapshot: { blur: 4 } })
   })
 
+  it('rebases untouched fields and the snapshot onto settings changed elsewhere', async () => {
+    const { store, updateSettingsOrThrow } = makeStore({ appBackgroundBlur: 4 })
+    store.getState().setAppBackgroundDraft({ blur: 8 })
+    store.setState((state) => ({
+      settings: {
+        ...state.settings!,
+        appBackgroundBlur: 12,
+        appBackgroundPanelOpacity: 0.5,
+        terminalBackgroundOpacity: 0.3
+      }
+    }))
+
+    store.getState().syncAppBackgroundDraftWithSettings()
+
+    expect(store.getState().appBackgroundDraft).toMatchObject({
+      blur: 8,
+      panelOpacity: 0.5,
+      terminalBackgroundOpacity: 0.3,
+      snapshot: { blur: 12, panelOpacity: 0.5, terminalBackgroundOpacity: 0.3 }
+    })
+    expect(hasChanges(store.getState())).toBe(true)
+
+    // Moving back to what settings now hold is no change; the old baseline is a real change.
+    store.getState().setAppBackgroundDraft({ blur: 12 })
+    expect(hasChanges(store.getState())).toBe(false)
+    store.getState().setAppBackgroundDraft({ blur: 4 })
+    await store.getState().applyAppBackgroundDraft()
+    expect(updateSettingsOrThrow).toHaveBeenCalledExactlyOnceWith({ appBackgroundBlur: 4 })
+  })
+
+  it('previews the image applied elsewhere when the draft keeps the image unchanged', () => {
+    const { store } = makeStore({ appBackgroundImageId: SAVED_ID })
+    store.getState().setAppBackgroundDraft({ blur: 8 })
+    store.setState((state) => ({
+      settings: { ...state.settings!, appBackgroundImageId: STAGED_A }
+    }))
+
+    store.getState().syncAppBackgroundDraftWithSettings()
+
+    expect(resolveAppBackgroundDraftImage(store.getState().appBackgroundDraft!)).toEqual({
+      id: STAGED_A,
+      staging: false
+    })
+  })
+
+  it('drops a pending removal once the image is already gone', () => {
+    const { store } = makeStore({ appBackgroundImageId: SAVED_ID })
+    store.getState().removeAppBackgroundDraftImage()
+    store.setState((state) => ({ settings: { ...state.settings!, appBackgroundImageId: null } }))
+
+    store.getState().syncAppBackgroundDraftWithSettings()
+
+    expect(store.getState().appBackgroundDraft?.image).toEqual({ kind: 'unchanged' })
+    expect(hasChanges(store.getState())).toBe(false)
+  })
+
+  it('leaves the draft object untouched when settings still match the snapshot', () => {
+    const { store } = makeStore()
+    store.getState().syncAppBackgroundDraftWithSettings()
+    expect(store.getState().appBackgroundDraft).toBeNull()
+
+    store.getState().setAppBackgroundDraft({ blur: 9 })
+    const before = store.getState().appBackgroundDraft
+    store.getState().syncAppBackgroundDraftWithSettings()
+    expect(store.getState().appBackgroundDraft).toBe(before)
+  })
+
   it('normalizes edits and treats reverting to the snapshot as no change', () => {
     const { store } = makeStore()
 

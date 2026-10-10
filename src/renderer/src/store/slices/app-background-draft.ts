@@ -45,6 +45,8 @@ export type AppBackgroundDraftSlice = {
   openAppBackgroundDraft: () => void
   /** Merges normalized values into the draft, opening it first if needed. */
   setAppBackgroundDraft: (patch: Partial<AppBackgroundDraftValues>) => void
+  /** Rebases the draft onto current settings: untouched fields follow them, edited ones stay. */
+  syncAppBackgroundDraftWithSettings: () => void
   /** Records a picked staging image; any previously staged file is discarded. */
   stageAppBackgroundDraftImage: (stagingId: string) => void
   /** Marks the current image for removal (or just drops a staged pick when none is saved). */
@@ -116,6 +118,40 @@ function buildDraft(settings: GlobalSettings | null): AppBackgroundDraft {
     ...values,
     image: { kind: 'unchanged' },
     snapshot: { ...values, imageId: normalizeAppBackgroundImageId(settings?.appBackgroundImageId) }
+  }
+}
+
+/** The snapshot always mirrors current settings, so "changed" means "differs from what is applied now". */
+export function rebaseAppBackgroundDraft(
+  draft: AppBackgroundDraft,
+  settings: GlobalSettings | null
+): AppBackgroundDraft {
+  const next = readAppBackgroundDraftValues(settings)
+  const nextImageId = normalizeAppBackgroundImageId(settings?.appBackgroundImageId)
+  const { snapshot } = draft
+  if (
+    snapshot.imageId === nextImageId &&
+    snapshot.scope === next.scope &&
+    snapshot.imageOpacity === next.imageOpacity &&
+    snapshot.blur === next.blur &&
+    snapshot.panelOpacity === next.panelOpacity &&
+    snapshot.terminalBackgroundOpacity === next.terminalBackgroundOpacity
+  ) {
+    return draft
+  }
+  const edited: AppBackgroundDraftValues = draft
+  const baseline: AppBackgroundDraftValues = snapshot
+  const follow = <K extends keyof AppBackgroundDraftValues>(key: K): AppBackgroundDraftValues[K] =>
+    edited[key] === baseline[key] ? next[key] : edited[key]
+  return {
+    scope: follow('scope'),
+    imageOpacity: follow('imageOpacity'),
+    blur: follow('blur'),
+    panelOpacity: follow('panelOpacity'),
+    terminalBackgroundOpacity: follow('terminalBackgroundOpacity'),
+    image:
+      draft.image.kind === 'remove' && nextImageId === null ? { kind: 'unchanged' } : draft.image,
+    snapshot: { ...next, imageId: nextImageId }
   }
 }
 
@@ -199,6 +235,17 @@ export function createAppBackgroundDraftActions(
 
     openAppBackgroundDraft: () => {
       ensureDraft()
+    },
+
+    syncAppBackgroundDraftWithSettings: () => {
+      const draft = get().appBackgroundDraft
+      if (!draft) {
+        return
+      }
+      const rebased = rebaseAppBackgroundDraft(draft, get().settings)
+      if (rebased !== draft) {
+        set({ appBackgroundDraft: rebased })
+      }
     },
 
     setAppBackgroundDraft: (patch) => {

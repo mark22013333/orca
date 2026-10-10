@@ -342,4 +342,28 @@ describe('AppearanceBackgroundSection', () => {
     fireEvent.click(remove)
     expect(store.getState().appBackgroundDraft?.image).toEqual({ kind: 'remove' })
   })
+
+  it('shows settings changed elsewhere for fields the draft did not touch', () => {
+    const { store, renderSection } = setup({ terminalBackgroundOpacity: 0.9 })
+    const { rerender } = renderSection()
+    fireEvent.change(screen.getByRole('slider', { name: 'Panel Opacity' }), {
+      target: { value: '0.4' }
+    })
+
+    act(() => {
+      store.setState((state) => ({
+        settings: { ...state.settings!, terminalBackgroundOpacity: 0.3 }
+      }))
+    })
+    rerender(<AppearanceBackgroundSection settings={store.getState().settings!} />)
+
+    expect(
+      screen.getByRole('slider', { name: 'Terminal Background Opacity' }).getAttribute('value')
+    ).toBe('0.3')
+    expect(store.getState().appBackgroundDraft).toMatchObject({
+      panelOpacity: 0.4,
+      terminalBackgroundOpacity: 0.3,
+      snapshot: { terminalBackgroundOpacity: 0.3 }
+    })
+  })
 })
