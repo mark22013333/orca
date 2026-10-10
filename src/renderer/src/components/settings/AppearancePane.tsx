@@ -47,6 +47,8 @@ import {
   getAppBackgroundSectionTitle
 } from './appearance-background-search'
 import type { AppearanceAccordionSection } from './appearance-usage-percentage-search'
+import { selectAppBackgroundDraftHasUnappliedChanges } from '../../store/slices/app-background-draft'
+import { SettingsBadge } from './SettingsFormControls'
 export { getAppearancePaneSearchEntries }
 
 type AppearancePaneProps = {
@@ -95,10 +97,19 @@ export function AppearancePane({
   // Why: background images need the desktop file-picker IPC, which the web client lacks.
   const showAppBackground = !isWebClient
 
+  const backgroundHasUnappliedChanges =
+    useAppStore(selectAppBackgroundDraftHasUnappliedChanges) && showAppBackground
+
   // Why: Terminal / Window settings were too easy to miss when only Interface
   // started open; keep sections independently collapsible but expanded by default.
+  // An unapplied background draft reopens its section so the pending edit is visible.
   const [openSections, setOpenSections] = useState<ReadonlySet<AppearanceSectionKey>>(
-    () => new Set(DEFAULT_OPEN_APPEARANCE_SECTIONS)
+    () =>
+      new Set<AppearanceSectionKey>(
+        backgroundHasUnappliedChanges
+          ? [...DEFAULT_OPEN_APPEARANCE_SECTIONS, 'background']
+          : DEFAULT_OPEN_APPEARANCE_SECTIONS
+      )
   )
 
   // Why: nested deep links (e.g. Usage percentages) land under Window & Sidebar;
@@ -231,7 +242,18 @@ export function AppearancePane({
           id="background"
           icon={<ImageIcon aria-hidden="true" />}
           title={backgroundTitle}
-          summary={backgroundSummary}
+          summary={
+            backgroundHasUnappliedChanges ? (
+              <>
+                <SettingsBadge tone="accent" className="mr-1.5">
+                  {translate('settings.appearance.background.unapplied', 'Unapplied changes')}
+                </SettingsBadge>
+                {backgroundSummary}
+              </>
+            ) : (
+              backgroundSummary
+            )
+          }
           open={isSectionOpen('background')}
           onToggle={() => toggleSection('background')}
           toggleDisabled={isSearching}
