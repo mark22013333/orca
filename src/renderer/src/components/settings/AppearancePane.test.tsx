@@ -12,29 +12,33 @@ import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import type { StatusBarItem } from '../../../../shared/ui-chrome-types'
 import type { AppBackgroundDraft } from '../../store/slices/app-background-draft'
 
-const mocks = vi.hoisted(() => ({
-  state: {
-    appPlatform: 'linux' as NodeJS.Platform,
-    availableStatusBarToggles: [] as {
-      description: string
-      id: StatusBarItem
-      keywords: string[]
-      title: string
-      toggleDescription: string
-    }[],
-    settingsSearchQuery: 'automations',
-    statusBarItems: [],
-    toggleStatusBarItem: vi.fn(),
-    usagePercentageDisplay: 'used' as 'used' | 'remaining',
-    setUsagePercentageDisplay: vi.fn(),
-    recordFeatureInteraction: vi.fn(),
-    setWorktreeCardMode: vi.fn(),
-    appearanceAccordionDeepLink: null as 'interface' | 'terminal' | 'window' | null,
-    clearAppearanceAccordionDeepLink: vi.fn(),
-    appBackgroundDraft: null as AppBackgroundDraft | null,
-    syncAppBackgroundDraftWithSettings: vi.fn()
+const mocks = vi.hoisted(() => {
+  // Why a function: a typed `null` initializer would narrow the field to `null`.
+  const noDraft = (): AppBackgroundDraft | null => null
+  return {
+    state: {
+      appPlatform: 'linux' as NodeJS.Platform,
+      availableStatusBarToggles: [] as {
+        description: string
+        id: StatusBarItem
+        keywords: string[]
+        title: string
+        toggleDescription: string
+      }[],
+      settingsSearchQuery: 'automations',
+      statusBarItems: [],
+      toggleStatusBarItem: vi.fn(),
+      usagePercentageDisplay: 'used' as 'used' | 'remaining',
+      setUsagePercentageDisplay: vi.fn(),
+      recordFeatureInteraction: vi.fn(),
+      setWorktreeCardMode: vi.fn(),
+      appearanceAccordionDeepLink: null as 'interface' | 'terminal' | 'window' | null,
+      clearAppearanceAccordionDeepLink: vi.fn(),
+      appBackgroundDraft: noDraft(),
+      syncAppBackgroundDraftWithSettings: vi.fn()
+    }
   }
-}))
+})
 
 vi.mock('../../store', () => ({
   useAppStore: (selector: (state: typeof mocks.state) => unknown) => selector(mocks.state)
