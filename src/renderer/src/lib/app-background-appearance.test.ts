@@ -76,3 +76,12 @@ describe('main.css panel alpha curves', () => {
     expect(curves).toEqual([65, 85])
   })
 })
+
+describe('main.css window host stacking', () => {
+  const css = readFileSync(resolve('src/renderer/src/assets/main.css'), 'utf8')
+
+  it('keeps the app-root host out of its own stacking context', () => {
+    // An isolated app root traps the inline toaster under body-portaled dialog overlays.
+    expect(css).toMatch(/\.app-layout\[data-app-background\] \{\s*isolation: auto;/)
+  })
+})

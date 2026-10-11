@@ -1020,6 +1020,13 @@ html.native-shell .app-layout {
   isolation: isolate;
 }
 
+/* Why: the window host is the app root, and isolating it traps the inline sonner toaster and
+   in-app overlays under body-portaled dialogs; its layer sits in the root context instead,
+   above only the canvas (body's background propagates there; html, #root and .app-layout paint none). */
+.app-layout[data-app-background] {
+  isolation: auto;
+}
+
 .dark [data-app-background],
 [data-app-background].dark {
   --app-panel-alpha: calc(var(--app-panel-opacity, 1) * 85%);
