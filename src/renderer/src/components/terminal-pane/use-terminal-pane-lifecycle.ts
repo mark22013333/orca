@@ -15,6 +15,7 @@ import {
 import type { UseTerminalPaneLifecycleDeps } from './terminal-pane-lifecycle-types'
 import { useTerminalPaneMountLifecycle } from './use-terminal-pane-mount-lifecycle'
 import { useTerminalPaneLifecycleRefs } from './use-terminal-pane-lifecycle-refs'
+import { useAppBackgroundImageShowing } from '@/components/app-background/app-background-visibility'
 
 export {
   applyTerminalScrollbackRowsToMountedPanes,
@@ -50,6 +51,8 @@ export function useTerminalPaneLifecycle(deps: UseTerminalPaneLifecycleDeps): vo
   )
   const systemPrefersDarkRef = refs.systemPrefersDarkRef
   systemPrefersDarkRef.current = deps.systemPrefersDark
+  // Why: the xterm fill depends on the image having loaded, which no settings change signals.
+  const appBackgroundImageShowing = useAppBackgroundImageShowing(deps.settings)
 
   useEffect(() => {
     const onWakeHibernatedAgents = (event: Event): void => {
@@ -147,6 +150,7 @@ export function useTerminalPaneLifecycle(deps: UseTerminalPaneLifecycleDeps): vo
   }, [
     deps.settings,
     deps.systemPrefersDark,
+    appBackgroundImageShowing,
     deps.effectiveMacOptionAsAlt,
     deps.managerRef,
     deps.settingsRef,
