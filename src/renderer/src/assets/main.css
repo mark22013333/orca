@@ -1064,6 +1064,10 @@ html.native-shell .app-layout {
   background: color-mix(in srgb, var(--sidebar) var(--app-panel-alpha), transparent);
 }
 
+[data-app-background] [data-app-background-surface='background'] {
+  background: color-mix(in srgb, var(--background) var(--app-panel-alpha), transparent);
+}
+
 /* Why: the pane root already paints the translucent terminal fill under the titles;
    a second copy here would double its opacity over the image. */
 [data-app-background] .pane-title-bar {

@@ -85,3 +85,13 @@ describe('main.css window host stacking', () => {
     expect(css).toMatch(/\.app-layout\[data-app-background\] \{\s*isolation: auto;/)
   })
 })
+
+describe('main.css background surface', () => {
+  const css = readFileSync(resolve('src/renderer/src/assets/main.css'), 'utf8')
+
+  it('fades opaque --background fills such as the landing page', () => {
+    expect(css).toMatch(
+      /\[data-app-background\] \[data-app-background-surface='background'\] \{\s*background: color-mix\(in srgb, var\(--background\) var\(--app-panel-alpha\), transparent\);/
+    )
+  })
+})
