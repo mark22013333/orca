@@ -38,7 +38,7 @@ import { runAfterFirstWindowShown } from './first-window-deferral'
 import { logStartupMilestone } from './startup-diagnostics'
 import { refreshInstalledOpenCodeStatusPlugins } from '../opencode/opencode-status-plugin-startup-refresh'
 import { pruneDesktopOrcadArtifactCache } from '../orcad/orcad-artifact-cache-retention'
-import { sweepAppBackgroundStaging } from '../ipc/app-background'
+import { sweepAppBackgroundImages } from '../ipc/app-background'
 
 // Headless serve never opens a window, so the sweep still has to run off a timer there.
 const WORKTREE_TRASH_SWEEP_FALLBACK_MS = 15_000
@@ -106,8 +106,8 @@ export async function initializeReadyRuntimeServices(): Promise<void> {
     })
   }, WORKTREE_TRASH_SWEEP_FALLBACK_MS)
   runAfterFirstWindowShown(() => {
-    void sweepAppBackgroundStaging().catch((error) => {
-      console.warn('[app-background] Failed to sweep staged images:', error)
+    void sweepAppBackgroundImages(store).catch((error) => {
+      console.warn('[app-background] Failed to sweep unused background images:', error)
     })
   }, WORKTREE_TRASH_SWEEP_FALLBACK_MS)
   nativeTheme.themeSource = store.getSettings().theme ?? 'system'

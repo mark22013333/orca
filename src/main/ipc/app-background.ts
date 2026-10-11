@@ -18,6 +18,7 @@ import { detectImageMimeType } from '../image-file-signature'
 import { translateMain } from '../i18n/main-i18n'
 import { isENOENT } from './filesystem-path-containment'
 import {
+  getAppBackgroundDir,
   getAppBackgroundStagingDir,
   resolveAppBackgroundImageFile
 } from './app-background-storage-paths'
@@ -98,7 +99,18 @@ async function commitAppBackgroundImage(
   }
   const previousId = store.getSettings().appBackgroundImageId ?? null
   // Why flush before deleting the old file: a crash in between must not leave settings naming a missing image.
-  await store.updateSettingsAndFlush({ appBackgroundImageId: stagingId }, { notifyListeners: true })
+  try {
+    await store.updateSettingsAndFlush(
+      { appBackgroundImageId: stagingId },
+      { notifyListeners: true }
+    )
+  } catch (error) {
+    console.warn('[app-background] failed to save the background setting', error)
+    if (stagingId !== null) {
+      await restoreUncommittedImage(stagingId)
+    }
+    return { ok: false, reason: 'saveFailed' }
+  }
   if (previousId !== null && previousId !== stagingId) {
     const previousFile = resolveAppBackgroundImageFile(previousId, false)
     if (previousFile) {
@@ -108,6 +120,22 @@ async function commitAppBackgroundImage(
     }
   }
   return { ok: true, imageId: stagingId }
+}
+
+// Why back to staging: the draft still names this id, so the user can retry without re-picking.
+async function restoreUncommittedImage(stagingId: string): Promise<void> {
+  const committed = resolveAppBackgroundImageFile(stagingId, false)
+  const staged = resolveAppBackgroundImageFile(stagingId, true)
+  if (!committed || !staged) {
+    return
+  }
+  try {
+    await rename(committed, staged)
+    stagedThisSession.add(stagingId)
+  } catch (error) {
+    console.warn('[app-background] failed to restore an unsaved image to staging', error)
+    await rm(committed, { force: true }).catch(() => {})
+  }
 }
 
 async function discardAppBackgroundStaging(stagingId: string): Promise<void> {
@@ -121,22 +149,43 @@ async function discardAppBackgroundStaging(stagingId: string): Promise<void> {
   })
 }
 
-/** Removes staged images left by earlier sessions; only feature-generated ids are touched. */
-export async function sweepAppBackgroundStaging(): Promise<void> {
-  const dir = getAppBackgroundStagingDir()
-  let entries: string[]
+async function listImageFiles(dir: string): Promise<string[]> {
   try {
-    entries = await readdir(dir)
+    const entries = await readdir(dir, { withFileTypes: true })
+    return entries
+      .filter((entry) => entry.isFile() && isAppBackgroundImageId(entry.name))
+      .map((entry) => entry.name)
   } catch (error) {
     if (isENOENT(error)) {
-      return
+      return []
     }
     throw error
   }
-  const stale = entries.filter(
-    (name) => isAppBackgroundImageId(name) && !stagedThisSession.has(name)
+}
+
+async function sweepUnreferencedImages(store: AppBackgroundSettingsStore): Promise<void> {
+  const stagingDir = getAppBackgroundStagingDir()
+  const staleStaged = (await listImageFiles(stagingDir)).filter(
+    (name) => !stagedThisSession.has(name)
   )
-  await Promise.all(stale.map((name) => rm(join(dir, name), { force: true })))
+  const appliedId = store.getSettings().appBackgroundImageId ?? null
+  const appearanceDir = getAppBackgroundDir()
+  const orphaned = (await listImageFiles(appearanceDir)).filter((name) => name !== appliedId)
+  await Promise.all([
+    ...staleStaged.map((name) => rm(join(stagingDir, name), { force: true })),
+    ...orphaned.map((name) => rm(join(appearanceDir, name), { force: true }))
+  ])
+}
+
+/**
+ * Removes staged images from earlier sessions and committed images the settings no longer name
+ * (e.g. a crash between rename and flush). Only feature-generated `<uuid>.<ext>` files are touched.
+ */
+export function sweepAppBackgroundImages(store: AppBackgroundSettingsStore): Promise<void> {
+  // Why on the commit queue: mid-commit, the new image sits in appearance/ before settings name it.
+  const run = commitQueue.then(() => sweepUnreferencedImages(store))
+  commitQueue = run.catch(() => {})
+  return run
 }
 
 export function registerAppBackgroundHandlers(store: AppBackgroundSettingsStore): void {

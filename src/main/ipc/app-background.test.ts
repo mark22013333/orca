@@ -31,7 +31,7 @@ vi.mock('../i18n/main-i18n', () => ({
   translateMain: (key: string, fallback: string) => `[${key}] ${fallback}`
 }))
 
-import { registerAppBackgroundHandlers, sweepAppBackgroundStaging } from './app-background'
+import { registerAppBackgroundHandlers, sweepAppBackgroundImages } from './app-background'
 import { MAX_APP_BACKGROUND_IMAGE_BYTES } from '../../shared/app-background-settings'
 
 const PNG = Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.from('png-body')])
@@ -222,6 +222,29 @@ describe('registerAppBackgroundHandlers', () => {
     expect(settings.appBackgroundImageId).toBe(OLD_ID)
   })
 
+  it('moves the image back to staging when saving the setting fails', async () => {
+    await mkdir(appearanceDir, { recursive: true })
+    await writeFile(join(appearanceDir, OLD_ID), PNG)
+    settings = { appBackgroundImageId: OLD_ID }
+    const stagingId = await pickStagingId('next.png', PNG)
+    store.updateSettingsAndFlush.mockRejectedValueOnce(new Error('disk full'))
+
+    await expect(handler('appBackground:commit')({}, { stagingId })).resolves.toEqual({
+      ok: false,
+      reason: 'saveFailed'
+    })
+    expect(settings.appBackgroundImageId).toBe(OLD_ID)
+    expect((await readdir(appearanceDir)).sort()).toEqual(['.staging', OLD_ID].sort())
+    expect(await readdir(stagingDir)).toEqual([stagingId])
+
+    // The restored staging file must survive the sweep and still be committable.
+    await sweepAppBackgroundImages(store)
+    await expect(handler('appBackground:commit')({}, { stagingId })).resolves.toEqual({
+      ok: true,
+      imageId: stagingId
+    })
+  })
+
   it('discards a staged image', async () => {
     const stagingId = await pickStagingId('discard.webp', Buffer.from('RIFF\0\0\0\0WEBPVP8 '))
 
@@ -238,12 +261,51 @@ describe('registerAppBackgroundHandlers', () => {
     await writeFile(join(stagingDir, 'readme.txt'), 'not ours')
     const fresh = await pickStagingId('fresh.png', PNG)
 
-    await sweepAppBackgroundStaging()
+    await sweepAppBackgroundImages(store)
 
     expect((await readdir(stagingDir)).sort()).toEqual([fresh, 'readme.txt'].sort())
   })
 
+  it('sweeps committed images the settings no longer reference', async () => {
+    const orphan = '33333333-2222-4333-8444-555555555555.jpg'
+    await mkdir(appearanceDir, { recursive: true })
+    await writeFile(join(appearanceDir, OLD_ID), PNG)
+    await writeFile(join(appearanceDir, orphan), JPEG)
+    await writeFile(join(appearanceDir, 'user-note.txt'), 'keep')
+    await mkdir(join(appearanceDir, '44444444-2222-4333-8444-555555555555.png'))
+    settings = { appBackgroundImageId: OLD_ID }
+
+    await sweepAppBackgroundImages(store)
+
+    expect((await readdir(appearanceDir)).sort()).toEqual(
+      [OLD_ID, 'user-note.txt', '44444444-2222-4333-8444-555555555555.png'].sort()
+    )
+  })
+
+  it('does not sweep an image whose commit is still saving the setting', async () => {
+    const stagingId = await pickStagingId('racing.png', PNG)
+    let finishSave: () => void = () => {}
+    store.updateSettingsAndFlush.mockImplementationOnce(async (updates: typeof settings) => {
+      await new Promise<void>((resolve) => {
+        finishSave = resolve
+      })
+      settings = { ...settings, ...updates }
+      return settings
+    })
+
+    const commit = handler('appBackground:commit')({}, { stagingId })
+    await vi.waitFor(() => expect(store.updateSettingsAndFlush).toHaveBeenCalled())
+    const sweep = sweepAppBackgroundImages(store)
+    // Give an unqueued sweep time to run while settings still name no image.
+    await Promise.race([sweep, new Promise((resolve) => setTimeout(resolve, 50))])
+    finishSave()
+    await expect(commit).resolves.toEqual({ ok: true, imageId: stagingId })
+    await sweep
+
+    await expect(readImage({ id: stagingId })).resolves.toEqual(PNG)
+  })
+
   it('treats a missing staging directory as nothing to sweep', async () => {
-    await expect(sweepAppBackgroundStaging()).resolves.toBeUndefined()
+    await expect(sweepAppBackgroundImages(store)).resolves.toBeUndefined()
   })
 })
